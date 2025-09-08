@@ -1,0 +1,26 @@
+spring:
+  application:
+    name: demo
+
+server:
+  port: 8080
+
+management:
+  server:
+    port: 8081
+  endpoints:
+    web:
+      exposure:
+        include: "health,info,metrics,prometheus"
+  metrics:
+    tags:
+      application: demo-app
+    distribution:
+      percentiles-histogram:
+        http:
+          server:
+            requests: true   # emit *_bucket for latency percentiles
+      percentiles:
+        http:
+          server:
+            requests: 0.5, 0.95, 0.99

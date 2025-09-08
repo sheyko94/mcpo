@@ -1,0 +1,61 @@
+services:
+
+  app:
+    build:
+      dockerfile: Dockerfile
+      context: .
+    container_name: app
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    labels:
+      com.docker.compose.service: app # cAdvisor labels
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.52.1
+    container_name: cadvisor
+    command:
+    - --docker=unix:///var/run/docker.sock
+    - --docker_only=false
+    - --containerd=/run/containerd/containerd.sock
+    - --containerd-namespace=moby
+    # use legacy flag for Docker labels
+    - --whitelisted_container_labels=com.docker.compose.service,com.docker.compose.project
+    # use allowlist flag for containerd
+    - --store_container_labels=true
+    ports:
+      - "9080:8080"
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /run/containerd:/run/containerd:ro
+      - /var/lib/containerd:/var/lib/containerd:ro
+      - /sys:/sys:ro
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    volumes:
+      - ./prometheus-provisioning/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - app
+      - cadvisor
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana-provisioning/grafana-datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml:ro
+      - ./grafana-provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+    depends_on:
+      - prometheus
+
+volumes:
+  grafana-data:
