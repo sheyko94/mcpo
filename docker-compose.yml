@@ -15,14 +15,14 @@ services:
     image: gcr.io/cadvisor/cadvisor:v0.52.1
     container_name: cadvisor
     command:
-    - --docker=unix:///var/run/docker.sock
-    - --docker_only=false
-    - --containerd=/run/containerd/containerd.sock
-    - --containerd-namespace=moby
-    # use legacy flag for Docker labels
-    - --whitelisted_container_labels=com.docker.compose.service,com.docker.compose.project
-    # use allowlist flag for containerd
-    - --store_container_labels=true
+      - --docker=unix:///var/run/docker.sock
+      - --docker_only=false
+      - --containerd=/run/containerd/containerd.sock
+      - --containerd-namespace=moby
+      # use legacy flag for Docker labels
+      - --whitelisted_container_labels=com.docker.compose.service,com.docker.compose.project
+      # use allowlist flag for containerd
+      - --store_container_labels=true
     ports:
       - "9080:8080"
     privileged: true
@@ -56,6 +56,20 @@ services:
       - ./grafana-provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
     depends_on:
       - prometheus
+
+  loader:
+    image: curlimages/curl:8.10.1
+    container_name: loader
+    command: [ "/bin/sh", "/fake_load.sh" ]
+    environment:
+      - BASE_URL=http://app:8080
+      - WORKERS=6 # tweak
+      - SLEEP_MIN=0.05
+      - SLEEP_MAX=0.50
+    volumes:
+      - ./fake_load.sh:/fake_load.sh:ro
+    depends_on:
+      - app
 
 volumes:
   grafana-data:
