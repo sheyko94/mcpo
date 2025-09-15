@@ -10,10 +10,18 @@ services:
       - "8081:8081"
     labels:
       com.docker.compose.service: app # cAdvisor labels
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health" ]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.52.1
     container_name: cadvisor
+    logging:
+      driver: "local"
     command:
       - --docker=unix:///var/run/docker.sock
       - --docker_only=false
@@ -31,35 +39,62 @@ services:
       - /run/containerd:/run/containerd:ro
       - /var/lib/containerd:/var/lib/containerd:ro
       - /sys:/sys:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8080/healthz" ]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
 
   prometheus:
     image: prom/prometheus:v2.54.1
     container_name: prometheus
+    logging:
+      driver: "local"
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
     volumes:
-      - ./prometheus-provisioning/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./provisioning/prometheus/config.yml:/etc/prometheus/prometheus.yml:ro
     ports:
       - "9090:9090"
     depends_on:
-      - app
-      - cadvisor
+      app:
+        condition: service_healthy
+      cadvisor:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:9090/-/healthy" ]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
 
   grafana:
     image: grafana/grafana:11.1.0
     container_name: grafana
+    logging:
+      driver: "local"
     ports:
       - "3000:3000"
     volumes:
       - grafana-data:/var/lib/grafana
-      - ./grafana-provisioning/grafana-datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml:ro
-      - ./grafana-provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./provisioning/grafana/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml:ro
+      - ./provisioning/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
     depends_on:
-      - prometheus
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:3000/api/health" ]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
 
   elasticsearch:
     image: elasticsearch:9.1.3
     container_name: elasticsearch
+    logging:
+      driver: "local"
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
@@ -67,40 +102,78 @@ services:
       - "9200:9200"
     volumes:
       - es-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: [ "CMD-SHELL", "/bin/bash -lc '</dev/tcp/localhost/9200'" ]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
 
   kibana:
     image: kibana:9.1.3
     container_name: kibana
+    logging:
+      driver: "local"
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
     ports:
       - "5601:5601"
-    depends_on: [ elasticsearch ]
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "/bin/bash -lc '</dev/tcp/localhost/5601'" ]
+      interval: 10s
+      timeout: 5s
+      retries: 24
+      start_period: 30s
+
+  kibana-setup:
+    image: curlimages/curl:8.10.1
+    container_name: kibana-setup
+    environment:
+      - KBN_URL=http://kibana:5601
+      - DATA_VIEW_TITLE=docker-logs-*
+      - DATA_VIEW_NAME=Docker logs
+    logging:
+      driver: "local"
+    command: [ "/bin/sh", "/setup/kibana_setup.sh" ]
+    volumes:
+      - ./provisioning/kibana/kibana_setup.sh:/setup/kibana_setup.sh:ro
+    depends_on:
+      kibana:
+        condition: service_healthy
 
   fluentd:
-    build: ./fluentd
+    build: ./provisioning/fluentd
     container_name: fluentd
     user: root
     volumes:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro # Docker JSON logs
       - /var/run/docker.sock:/var/run/docker.sock:ro # Docker metadata
-      - ./fluentd/fluent.conf:/fluentd/etc/fluent.conf:ro
-      - ./fluentd/conf.d:/etc/fluent/conf.d:ro
-    depends_on: [ elasticsearch ]
+      - ./provisioning/fluentd/conf.d:/etc/fluent/conf.d:ro
+    logging:
+      driver: "local"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
 
   loader:
     image: curlimages/curl:8.10.1
     container_name: loader
     command: [ "/bin/sh", "/fake_load.sh" ]
+    logging:
+      driver: "local"
     environment:
       - BASE_URL=http://app:8080
       - WORKERS=6 # tweak
       - SLEEP_MIN=0.05
       - SLEEP_MAX=0.50
     volumes:
-      - ./fake_load.sh:/fake_load.sh:ro
+      - ./provisioning/fake_load.sh:/fake_load.sh:ro
     depends_on:
-      - app
+      app:
+        condition: service_healthy
 
 volumes:
   grafana-data:
