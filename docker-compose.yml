@@ -80,6 +80,7 @@ services:
       - grafana-data:/var/lib/grafana
       - ./provisioning/grafana/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml:ro
       - ./provisioning/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./provisioning/grafana/alerting:/etc/grafana/provisioning/alerting:ro
     depends_on:
       prometheus:
         condition: service_healthy

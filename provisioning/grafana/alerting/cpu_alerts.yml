@@ -1,0 +1,58 @@
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: app-runtime
+    folder: Infrastructure
+    interval: 1m
+    rules:
+      - uid: app_cpu_over_1pct
+        title: App container CPU ≥ 1%
+        condition: C
+        for: 1m
+        noDataState: NoData
+        execErrState: Error
+        labels:
+          severity: warning
+          service: app
+        annotations:
+          summary: "CPU ≥ 1%"
+          description: "Container CPU is {{ printf \"%.2f\" $values.B }}% (last 1m)."
+        data:
+          # A: your Prometheus query (percent)
+          - refId: A
+            datasourceUid: prometheus_uid
+            relativeTimeRange:
+              from: 300
+              to: 0
+            model:
+              expr: sum by (name) (rate(container_cpu_usage_seconds_total{image="docker.io/library/demo-app:latest"}[1m])) * 100
+              instant: false
+              range: true
+              legendFormat: "{{name}}"
+              interval: ""
+              intervalFactor: 2
+              refId: A
+          # B) Reduce last(A)
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              expression: A
+              reducer: last
+          # C) Threshold: last(B) > 1
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              conditions:
+                - type: query
+                  query:
+                    params: [B]
+                  reducer:
+                    type: last
+                  evaluator:
+                    type: gt     # use "gte" for ≥ 1%
+                    params: [1]
+                  operator:
+                    type: and
