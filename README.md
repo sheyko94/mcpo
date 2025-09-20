@@ -21,6 +21,7 @@ flowchart LR
   subgraph MCP
     mcp_es["MCP elastic"]
     mcp_prom["MCP prometheus"]
+    mcp_graf["MCP grafana"]
   end
 
   %% Column 3: Observability (Logging + Metrics)
@@ -53,8 +54,12 @@ flowchart LR
   kib --> es
   client --> mcp_es
   client --> mcp_prom
+  client --> mcp_graf
   mcp_es --> es
   mcp_prom --> prom
+  mcp_graf --> graf
+
+
 
 
 
@@ -114,6 +119,10 @@ The file ./provisioning/fake_load.sh starts calling the endpoint of the services
 ## MPC
 
 https://hub.docker.com/mcp/explore
+
+### Configure Visual Studio Code
+
+https://code.visualstudio.com/docs/copilot/customization/mcp-servers#_add-an-mcp-server-to-your-user-settings
 
 ### Elastic Search
 
@@ -242,4 +251,20 @@ curl -siN http://localhost:7072/mcp \
 
 ```
 
+### Grafana
 
+https://hub.docker.com/mcp/server/grafana/overview
+https://hub.docker.com/r/mcp/grafana/tags
+
+
+List available tools:
+
+``` curl
+
+curl -siN http://localhost:7073/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -H "mcp-session-id: $SESSION_ID" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{"cursor":null}}'
+
+```
