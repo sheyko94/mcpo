@@ -44,6 +44,45 @@ https://docs.fluentd.org/
 
 http://localhost:9200/
 
+### MCP
+
+List all tools in this MCP server:
+
+``` curl
+
+curl http://localhost:7071/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+
+```
+
+Use the tool **search** to filter logs. Following example is the last 3 error logs:
+
+``` curl
+
+curl http://localhost:7071/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{
+    "jsonrpc":"2.0",
+    "id":11,
+    "method":"tools/call",
+    "params":{
+      "name":"search",
+      "arguments":{
+        "index":"docker-logs-*",
+        "query_body":{
+          "query": { "match": { "log": "error" } },
+          "sort": [ { "@timestamp": { "order": "desc" } } ]
+        },
+        "size": 3
+      }
+    }
+  }'
+
+```
+
 ## Kibana
 
 https://www.elastic.co/docs/explore-analyze/query-filter
