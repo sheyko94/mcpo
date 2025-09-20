@@ -69,6 +69,18 @@ services:
       retries: 12
       start_period: 10s
 
+  prometheus-mcp:
+    container_name: prometheus-mcp
+    image: ghcr.io/pab1it0/prometheus-mcp-server:latest
+    environment:
+      PROMETHEUS_URL: http://prometheus:9090
+      PROMETHEUS_MCP_SERVER_TRANSPORT: http
+    ports:
+      - "7072:8080"
+    depends_on:
+      prometheus:
+        condition: service_healthy
+
   grafana:
     image: grafana/grafana:11.1.0
     container_name: grafana
