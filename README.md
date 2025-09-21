@@ -7,57 +7,59 @@ It is important to find the right metrics for Tangram and the right alerts for t
 As last step, research where can AI help us improve this process even further. 
 
 ```mermaid
-
 flowchart LR
+  %% Styling
+  classDef observability fill:#e0f0ff,stroke:#333,stroke-width:2px,color:#000
+  classDef mcp fill:#e6ffe6,stroke:#333,stroke-width:2px,color:#000
 
-  %% Column 1: Clients
-  subgraph Clients
-    client["AI agent / curl"]
-    graf["Grafana UI"]
-    kib["Kibana UI"]
-  end
-
-  %% Column 2: MCP
-  subgraph MCP
-    mcp_es["MCP elastic"]
-    mcp_prom["MCP prometheus"]
-    mcp_graf["MCP grafana"]
-  end
-
-  %% Column 3: Observability (Logging + Metrics)
-  subgraph Observability
-    direction TB
-    subgraph Logging
-      fluentd["fluentd"]
-      es["Elasticsearch"]
-    end
+  %% Left side: Observability Platform
+  subgraph Observability[Observability Platform]
+    app["app (with actuator)"]
+    
     subgraph Metrics
       cadvisor["cAdvisor"]
       prom["Prometheus"]
+      graf["Grafana"]
     end
+
+    subgraph Logging
+      fluentd["fluentd"]
+      es["Elasticsearch"]
+      kib["Kibana"]
+    end
+
+    %% Internal observability connections
+    app -.-> fluentd
+    app -.-> cadvisor
+    cadvisor -.-> prom
+    app -.-> prom
+    fluentd -.-> es
+    prom -.-> graf
+    es -.-> kib
   end
 
-  %% Column 4: App
-  subgraph App
-    app["app (with actuator)"]
+  %% Middle: MCP Layer
+  subgraph MCP[Model Context Protocol]
+    mcp_prom["MCP prometheus"]
+    mcp_es["MCP elastic"]
+    mcp_graf["MCP grafana"]
   end
 
-  %% Sends (dotted)
-  app -.-> fluentd
-  fluentd -.-> es
-  cadvisor -.-> prom
-  app -.-> prom
-  app -.-> cadvisor
+  %% Right side: Standalone elements
+  user(("User"))
+  agent["AI agent"]
+  user --> agent
 
-  %% Queries (solid)
-  graf --> prom
-  kib --> es
-  client --> mcp_es
-  client --> mcp_prom
-  client --> mcp_graf
+  %% Cross-layer connections
   mcp_es --> es
   mcp_prom --> prom
   mcp_graf --> graf
+  
+  agent --> mcp_es & mcp_prom & mcp_graf
+
+  %% Apply styles
+  class Observability observability
+  class MCP mcp
 
 
 
@@ -116,15 +118,19 @@ http://localhost:5601/app/home#/
 The file ./provisioning/fake_load.sh starts calling the endpoint of the services to generate networking traffic that allow us to test our metrics.
 
 
-## MPC
+## MCP
 
 https://hub.docker.com/mcp/explore
 
-### Configure Visual Studio Code
+### A bit of sense
 
-https://code.visualstudio.com/docs/copilot/customization/mcp-servers#_add-an-mcp-server-to-your-user-settings
+MCP servers are nothing but a server exposing certain contract to the clients.
 
-### Elastic Search
+All of them expose the method: **tools/list** - using this method we can discover (or our AI agent) available options to interact with the tool.
+
+Most big companies have started the path into building their MCPs, so we just need to use these methods from AI agent to query/interact with the tooling.
+
+### Elastic Search MCP
 
 https://hub.docker.com/mcp/server/elasticsearch/overview
 https://github.com/elastic/mcp-server-elasticsearch
@@ -166,7 +172,7 @@ curl http://localhost:7071/mcp \
 
 ```
 
-### Prometheus
+### Prometheus MCP
 
 https://hub.docker.com/mcp/server/prometheus/overview
 https://github.com/pab1it0/prometheus-mcp-server
@@ -251,7 +257,7 @@ curl -siN http://localhost:7072/mcp \
 
 ```
 
-### Grafana
+### Grafana MCP
 
 https://hub.docker.com/mcp/server/grafana/overview
 https://hub.docker.com/r/mcp/grafana/tags
@@ -264,7 +270,38 @@ List available tools:
 curl -siN http://localhost:7073/mcp \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \
-  -H "mcp-session-id: $SESSION_ID" \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{"cursor":null}}'
 
 ```
+
+Search all dashboards
+
+``` curl
+
+curl -siN http://localhost:7073/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{
+    "jsonrpc":"2.0",
+    "id":12,
+    "method":"tools/call",
+    "params":{
+      "name":"search_dashboards",
+      "arguments":{"query":""}
+    }
+  }'
+
+```
+
+### Other MCPs
+
+Attlasian (Confluence and Jira)
+Sonarqube
+Kubernetes
+OpenAPI
+aws-terraform
+aws-documentation
+aws-diagram
+Slack
+Gitlab
+

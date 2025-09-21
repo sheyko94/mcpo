@@ -138,6 +138,7 @@ services:
       timeout: 5s
       retries: 30
       start_period: 30s
+    mem_limit: "4g"
 
   elasticsearch-mcp:
     container_name: elasticsearch-mcp
@@ -219,6 +220,32 @@ services:
       app:
         condition: service_healthy
 
+  mcpo:
+    image: ghcr.io/open-webui/mcpo:main
+    container_name: mcpo
+    volumes:
+      - ./provisioning/mcpo.config.json:/config/mcpo.config.json:ro
+    command: ["--config","/config/mcpo.config.json","--hot-reload","--api-key","top-secret"]
+    ports:
+      - "8000:8000"
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:latest
+    container_name: open-webui
+    depends_on:
+      - mcpo
+    ports:
+      - "3001:8080"
+    environment:
+      - ENABLE_DIRECT_CONNECTIONS=True
+      - TOOL_SERVER_CONNECTIONS=[{"name":"elasticsearch","url":"http://mcpo:8000/elasticsearch","api_key":"top-secret"}]
+      - ENABLE_SIGNUP=False
+      - WEBUI_AUTH=False
+      - DEFAULT_USER_ROLE=admin
+    volumes:
+      - openwebui-data:/app/backend/data
+
 volumes:
   grafana-data:
   es-data:
+  openwebui-data:
