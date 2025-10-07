@@ -23,17 +23,17 @@ flowchart LR
     end
 
     subgraph Logging
-      fluentd["fluentd"]
+      logstash["logstash"]
       es["Elasticsearch"]
       kib["Kibana"]
     end
 
     %% Internal observability connections
-    app -.-> fluentd
+    app -.-> logstash
     app -.-> cadvisor
     cadvisor -.-> prom
     app -.-> prom
-    fluentd -.-> es
+    logstash -.-> es
     prom -.-> graf
     es -.-> kib
   end
@@ -97,9 +97,9 @@ http://localhost:9090/
 
 check scraping is working http://localhost:9090/targets
 
-## FluentD
+## Logstash
 
-https://docs.fluentd.org/
+https://www.elastic.co/docs/reference/logstash
 
 ## ElasticSearch
 
@@ -304,4 +304,27 @@ aws-documentation
 aws-diagram
 Slack
 Gitlab
+
+## Open Web UI
+
+https://github.com/open-webui/mcpo
+https://docs.openwebui.com/openapi-servers/open-webui/
+https://docs.openwebui.com/getting-started/env-configuration
+
+### MCPO
+
+http://localhost:8000
+http://localhost:8000/docs
+
+### UI
+
+http://localhost:3001
+
+### Ollama
+
+ollama pull qwen2.5:7b-instruct
+
+### Bedrock Access Gateway
+
+https://docs.openwebui.com/tutorials/integrations/amazon-bedrock
 
